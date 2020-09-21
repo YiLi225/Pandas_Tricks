@@ -130,10 +130,105 @@ dairy_table_groupby = dairy_table.groupby(['Measure_', 'Grams_', 'Calories_'], a
 for k in dairy_table_groupby.groups.keys():
     print(f'{"="*80}')
     print(dairy_table_groupby.get_group(k))
+    
 
 '''
-to be continued...
+7. pandas series or list or series of lists
 '''
+## Check if value exists in series 
+'skim, instant' in dairy_table['Food']
+'index6' in dairy_table['Food']
+
+## Check if value exists in series -- correct way 
+'skim, instant' in dairy_table.Food.values                ## call the column values
+'skim, instant' in list(dairy_table['Food'])              ## convert to a list of values
+dairy_table.Food.isin(['skim, instant']).any()            ## isin() checks against values
+dairy_table['Food'].str.contains('skim, instant').any()   ## string method
+
+## Modify the food table 
+food_dict = {"Food": dairy_table['Food'], 
+             "Nums": list(zip(dairy_table['Grams'], dairy_table['Calories']))}
+df = pd.DataFrame(food_dict)
+
+## Parse tuples of values into their own columns
+### Step1: Convert each element to their own series
+df_ = df["Nums"].apply(pd.Series)
+### Step2: Join back to the original df
+pd.merge(df, df_, left_index = True, right_index = True)
+
+
+'''
+8. Binning values smartly with map or applymap
+'''
+map_dict = {'Milk': ("Cows' milk, whole",'skim','Buttermilk, cultured','Evaporated, undiluted',
+                     'Fortified milk','Powdered milk, whole','skim, instant','skim, non-instant',
+                     "Goats' milk, fresh",'Malted milk (1/2 cup ice cream)', 
+                     "Ice milk, commercial"), 
+            'Pudding': ("Milk pudding (cornstarch)", "Custard, baked"), 
+            'Cream': ("Ice cream, commercial", "Cream, light, or half-and-half")}
+
+map_dict_reverse = {val:key for key,vals in map_dict.items() for val in vals} 
+
+dairy_table['Food_Category'] = dairy_table['Food'].map(map_dict_reverse).fillna('others')
+dairy_table.applymap(lambda x: map_dict_reverse.get(x) if x in map_dict_reverse.keys() else x)
+
+
+'''
+9. where used as an equivalent to ifelse in R
+'''
+## where() to replace values 
+food_names_list = ["Cows' milk, whole", 'skim', 'Buttermilk, cultured']
+boolean_idx = dairy_table["Food"].isin(food_names_list)
+dairy_table['Food'].where(boolean_idx, other='Others')
+
+
+'''
+10. Type of category to save memory
+'''
+## Convert Food_Category to the category-dtype and check backend codes ## 
+dairy_table['Food_Category'].astype('category').cat.codes
+
+## Check the memory usage 
+object_mem = dairy_table['Food_Category'].memory_usage(index=False, deep=True)
+category_mem = dairy_table['Food_Category'].astype('category').memory_usage(index=False, deep=True)
+print(f'Total bytes for the object-dtype = {object_mem}\nTotal bytes for the category-dtype = {category_mem}')
+
+
+## Caveat: (1) less flexible regarding assigning new values
+dairy_table['Food_Category'] = dairy_table['Food_Category'].astype('category')
+dairy_table['Food_Category'].iloc[2] = 'Another_Category'
+
+## In [112]: ValueError: Cannot setitem on a Categorical with a new category, set the categories first
+
+## Correct way to set new category values ##
+dairy_table['Food_Category'] = dairy_table['Food_Category'].cat.add_categories(['Another_Category'])
+dairy_table['Food_Category'].iloc[2] = 'Another_Category'
+
+## Caveat: (2) columns with unique values 
+dairy_table['Food'].memory_usage(index=False, deep=True)
+# Out[120]: 1605
+
+## Convert to category, 
+dairy_table['Food'].astype('category').memory_usage(index=False, deep=True)
+# Out[121]: 2262
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
